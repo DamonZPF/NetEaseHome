@@ -10,6 +10,8 @@
 #import "MobClick.h"
 @interface AppDelegate ()
 
+@property(nonatomic,assign)UIBackgroundTaskIdentifier backgroundIdentifier;
+
 @end
 
 @implementation AppDelegate
@@ -20,6 +22,10 @@
     [MobClick startWithAppkey:@"57230436e0f55ad314000c23" reportPolicy:SEND_INTERVAL channelId:nil];
     NSString *version = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"];
     [MobClick setAppVersion:version];
+    
+    UIUserNotificationSettings * notiification =   [UIUserNotificationSettings settingsForTypes:(UIUserNotificationTypeBadge|UIUserNotificationTypeAlert|UIUserNotificationTypeSound) categories:nil];
+    [[UIApplication sharedApplication] registerUserNotificationSettings:notiification];
+    
     return YES;
 }
 
@@ -29,8 +35,43 @@
 }
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    
+    if (self.backgroundIdentifier != UIBackgroundTaskInvalid){
+        [application endBackgroundTask:self.backgroundIdentifier];
+        self.backgroundIdentifier = UIBackgroundTaskInvalid;
+    }
+    
+  self.backgroundIdentifier =   [application beginBackgroundTaskWithExpirationHandler:^{
+      [application endBackgroundTask:self.backgroundIdentifier];
+      self.backgroundIdentifier = UIBackgroundTaskInvalid;
+  }];
+  
+    [application setMinimumBackgroundFetchInterval:UIApplicationBackgroundFetchIntervalMinimum];
+
+}
+
+-(void)application:(UIApplication *)application performFetchWithCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler{
+    
+    NSURLSession * sesson = [NSURLSession sharedSession];
+    [sesson dataTaskWithURL:[NSURL URLWithString:@"http://api.k780.com:88/?app=life.time&appkey=10003&sign=b59bc3ef6191eb9f747dd4e83c99f2a4&format=json"] completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        NSString * relult = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        
+        UILocalNotification * localNotificaion = [[UILocalNotification alloc] init];
+        localNotificaion.fireDate = [NSDate dateWithTimeIntervalSinceNow:0];
+        localNotificaion.timeZone = [NSTimeZone localTimeZone];
+        localNotificaion.alertTitle = @"通知";
+        localNotificaion.alertBody = @"aaaaasdfdasfasdasdfafs";
+        localNotificaion.soundName = UILocalNotificationDefaultSoundName;
+        [[UIApplication sharedApplication] scheduleLocalNotification:localNotificaion];
+        
+
+        if (error != nil){
+            completionHandler(UIBackgroundFetchResultFailed);
+        }else{
+             completionHandler(UIBackgroundFetchResultNewData);
+        }
+    }];
+    
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application {
